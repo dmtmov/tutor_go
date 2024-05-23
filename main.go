@@ -39,12 +39,11 @@ func main() {
 	var charSeq []Char
 
 	for _, value := range placeholder {
-		ch := Char{
+		charSeq = append(charSeq, Char{
 			value:    string(value),
 			original: string(value),
 			state:    states.regular,
-		}
-		charSeq = append(charSeq, ch)
+		})
 	}
 
 	// Handle keyboard input properly
@@ -61,19 +60,20 @@ func main() {
 		}
 
 		cursorChar := &charSeq[cursor]
-		if key == keyboard.KeyBackspace {
+		if key == keyboard.KeyBackspace2 {
 			cursor = max(0, cursor-1)
-			cursorChar.setState(cursorChar.original, states.regular)
-			// cursorChar.state = states.regular
+            // TODO: use setValue with the appropriate Char refference
+			charSeq[cursor].state = states.regular
 			charSeq[cursor].value = charSeq[cursor].original
 		} else {
 			if cursor <= len(placeholder) {
 				if string(char) == charSeq[cursor].original {
-					charSeq[cursor].state = states.correct
+					cursorChar.state = states.correct
+					cursorChar.value = string(char)
 				} else {
-					charSeq[cursor].state = states.wrong
+					cursorChar.state = states.wrong
+					cursorChar.value = string(char)
 				}
-				charSeq[cursor].value = string(char)
 				cursor += 1
 			}
 		}
@@ -93,11 +93,6 @@ func main() {
 	for n := 0; n <= len(placeholder); n++ {
 
 		fmt.Println(charSeq)
-		// textSeq[n] = Char{placeholder[cursor]}
-		// fmt.Printf("%d\n", len(placeholder))
-		// fmt.Printf("%v", string(placeholder[cursor]))
-		cursor += 1
-
 		if cursor == max(cursor, len(placeholder)) {
 			fmt.Println()
 			break
