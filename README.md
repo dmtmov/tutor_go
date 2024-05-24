@@ -12,7 +12,8 @@ As a sandbox project I've chosen a typing tutor tool.
 
 - [x] one-way typing
 - [x] support backspace
-- [ ] colorize characters
+- [x] colorize characters
+- [ ] handle functional keys (Tab, Enter, Esc, etc.)
 - [ ] calculate pace
 - [ ] generate bigger texts
 

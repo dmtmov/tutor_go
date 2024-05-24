@@ -2,6 +2,8 @@ package main
 
 import (
 	"fmt"
+	"strings"
+
 	"github.com/eiannone/keyboard"
 )
 
@@ -17,6 +19,7 @@ type Char struct {
 	value    string // the new value set from the pressed key;
 	original string // the initial value taken from the placeholder;
 	state    string // chosen style to character;
+	toPrint  string
 }
 
 // Update the state of reffered character
@@ -45,29 +48,48 @@ func (char Char) String() string {
 	styles := Styles{
 		okBlue:    "\033[94m",
 		fail:      "\033[91m",
-		underline: "\033[4m",
 		end:       "\033[0m",
+		underline: "\033[4m",
 	}
 
-	var reprVal string
+    var getPrintString = func(style string) string {
+        return fmt.Sprintf("%s%s%s", style, char.value, styles.end)
+    }
 	switch char.state {
-	case styles.okBlue:
-		reprVal = fmt.Sprintf("%s%s%s", styles.okBlue, char.value, styles.end)
-	case styles.fail:
-		reprVal = fmt.Sprintf("%s%s%s", styles.fail, char.value, styles.end)
+	case states.correct:
+        char.toPrint = getPrintString(styles.okBlue)
+		return getPrintString(styles.okBlue)
+	case states.wrong:
+        char.toPrint = getPrintString(styles.fail)
+		return getPrintString(styles.fail)
+	case states.regular:
+        char.toPrint = fmt.Sprintf("%s", char.value)
+		return fmt.Sprintf("%s", char.value)
 	default:
-		reprVal = char.value
+        char.toPrint = char.value
+		return char.value
 	}
-	return reprVal
+}
+
+type Represent interface {
+	// Problem: ca
+	show() string
 }
 
 const placeholder = "Lorem Ipsum"
 
+var states = States{"r", "c", "w", "f"}
+var r Represent
+
 func main() {
 	cursor := 0
-	states := States{"r", "c", "w", "f"}
 
 	var chars []Char
+    // TODO: problem - print slice items as a string.
+    // solutions:
+    //  - extend slice type with interface and func show();
+    //  - get Char as strings into sliceToPrint;
+	r = &chars
 
 	// TODO: is there any map() alternative from python?
 	for _, value := range placeholder {
@@ -104,11 +126,13 @@ func main() {
 			}
 		}
 
-		if cursor >= len(placeholder) || key == keyboard.KeyEsc {
+		if cursor > len(placeholder) || key == keyboard.KeyEsc {
 			break
 		}
 
 		// NOTE: add styling to test and print to stdout
+		strings.Join(chars, "")
+		s, ok := chars.(string)
 		fmt.Printf("\r%v", chars)
 	}
 
