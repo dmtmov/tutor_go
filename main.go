@@ -26,6 +26,7 @@ type Char struct {
 func (char *Char) setState(val, stt string) {
 	char.value = val
 	char.state = stt
+	char.toPrint = val
 }
 
 type Styles struct {
@@ -52,26 +53,26 @@ func (char Char) String() string {
 		underline: "\033[4m",
 	}
 
-    var getPrintString = func(style string) string {
-        return fmt.Sprintf("%s%s%s", style, char.value, styles.end)
-    }
+	var getPrintString = func(style string) string {
+		return fmt.Sprintf("%s%s%s", style, char.value, styles.end)
+	}
 	switch char.state {
 	case states.correct:
-        char.toPrint = getPrintString(styles.okBlue)
+		char.toPrint = getPrintString(styles.okBlue)
 		return getPrintString(styles.okBlue)
 	case states.wrong:
-        char.toPrint = getPrintString(styles.fail)
+		char.toPrint = getPrintString(styles.fail)
 		return getPrintString(styles.fail)
 	case states.regular:
-        char.toPrint = fmt.Sprintf("%s", char.value)
+		char.toPrint = fmt.Sprintf("%s", char.value)
 		return fmt.Sprintf("%s", char.value)
 	default:
-        char.toPrint = char.value
+		char.toPrint = char.value
 		return char.value
 	}
 }
 
-type Represent interface {
+type Representable interface {
 	// Problem: ca
 	show() string
 }
@@ -79,17 +80,18 @@ type Represent interface {
 const placeholder = "Lorem Ipsum"
 
 var states = States{"r", "c", "w", "f"}
-var r Represent
+
+var r Representable
 
 func main() {
 	cursor := 0
 
 	var chars []Char
-    // TODO: problem - print slice items as a string.
-    // solutions:
-    //  - extend slice type with interface and func show();
-    //  - get Char as strings into sliceToPrint;
-	r = &chars
+	// TODO: problem - print slice items as a string.
+	// solutions:
+	//  - extend slice type with interface and func show();
+	//  - get Char as strings into sliceToPrint;
+	// r = &chars
 
 	// TODO: is there any map() alternative from python?
 	for _, value := range placeholder {
@@ -112,34 +114,28 @@ func main() {
 			panic(err)
 		}
 
-		if key == keyboard.KeyBackspace2 {
+		switch key {
+		case keyboard.KeyBackspace2:
 			cursor = max(0, cursor-1)
 			chars[cursor].setState(chars[cursor].original, states.regular)
-		} else {
-			if cursor <= len(placeholder) {
-				if string(char) == chars[cursor].original {
-					chars[cursor].setState(string(char), states.correct)
-				} else {
-					chars[cursor].setState(string(char), states.wrong)
-				}
-				cursor += 1
+		case keyboard.KeySpace:
+			chars[cursor].setState(" ", states.correct)
+			cursor += 1
+		case keyboard.KeyEsc:
+			return
+		default:
+			if string(char) == chars[cursor].original {
+				chars[cursor].setState(string(char), states.correct)
+			} else {
+				chars[cursor].setState(string(char), states.wrong)
 			}
+			cursor += 1
 		}
 
-		if cursor > len(placeholder) || key == keyboard.KeyEsc {
-			break
+		toPrint := make([]string, len(placeholder))
+		for _, val := range chars {
+			toPrint = append(toPrint, val.String())
 		}
-
-		// NOTE: add styling to test and print to stdout
-		strings.Join(chars, "")
-		s, ok := chars.(string)
-		fmt.Printf("\r%v", chars)
-	}
-
-	// TODO: replace with Stringer interface
-	for n := 0; n <= len(placeholder); n++ {
-		if cursor == max(cursor, len(placeholder)) {
-			break
-		}
+		fmt.Printf("\r%v", strings.Join(toPrint, ""))
 	}
 }
