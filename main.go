@@ -72,26 +72,14 @@ func (char Char) String() string {
 	}
 }
 
-type Representable interface {
-	// Problem: ca
-	show() string
-}
-
 const placeholder = "Lorem Ipsum"
 
 var states = States{"r", "c", "w", "f"}
-
-var r Representable
 
 func main() {
 	cursor := 0
 
 	var chars []Char
-	// TODO: problem - print slice items as a string.
-	// solutions:
-	//  - extend slice type with interface and func show();
-	//  - get Char as strings into sliceToPrint;
-	// r = &chars
 
 	// TODO: is there any map() alternative from python?
 	for _, value := range placeholder {
