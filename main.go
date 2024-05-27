@@ -2,9 +2,13 @@ package main
 
 import (
 	"fmt"
-	"strings"
 
 	"github.com/eiannone/keyboard"
+)
+import (
+	"log"
+	"os"
+	"os/exec"
 )
 
 type States struct {
@@ -96,6 +100,8 @@ func main() {
 	}
 	defer keyboard.Close()
 
+	// timerSeconds := 0
+
 	for {
 		char, key, err := keyboard.GetKey()
 		if err != nil {
@@ -120,10 +126,21 @@ func main() {
 			cursor += 1
 		}
 
-		toPrint := make([]string, len(placeholder))
-		for _, val := range chars {
-			toPrint = append(toPrint, val.String())
+		// fmt.Printf(RenderText(chars))
+
+		// time.Sleep(1)
+		// timerSeconds += 1
+		// fmt.Println(timerSeconds)
+
+		cmd := exec.Command("stty", "size")
+		cmd.Stdin = os.Stdin
+		out, err := cmd.Output()
+		fmt.Printf("out: %#v\n", string(out))
+		fmt.Printf("err: %#v\n", err)
+		if err != nil {
+			log.Fatal(err)
 		}
-		fmt.Printf("\r%v", strings.Join(toPrint, ""))
+
 	}
+
 }
