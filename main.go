@@ -5,11 +5,6 @@ import (
 
 	"github.com/eiannone/keyboard"
 )
-import (
-	"log"
-	"os"
-	"os/exec"
-)
 
 type States struct {
 	regular string // the initial state. No modificators;
@@ -126,20 +121,10 @@ func main() {
 			cursor += 1
 		}
 
-		// fmt.Printf(RenderText(chars))
+		fmt.Printf(RenderText(chars))
 
-		// time.Sleep(1)
-		// timerSeconds += 1
-		// fmt.Println(timerSeconds)
-
-		cmd := exec.Command("stty", "size")
-		cmd.Stdin = os.Stdin
-		out, err := cmd.Output()
-		fmt.Printf("out: %#v\n", string(out))
-		fmt.Printf("err: %#v\n", err)
-		if err != nil {
-			log.Fatal(err)
-		}
+		// size := WindowDimensions{}
+		// size.getCurrent()
 
 	}
 
