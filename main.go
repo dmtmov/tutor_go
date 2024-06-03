@@ -80,7 +80,6 @@ func main() {
 
 	var chars []Char
 
-	// TODO: is there any map() alternative from python?
 	for _, value := range placeholder {
 		chars = append(chars, Char{
 			value:    string(value),
@@ -89,20 +88,20 @@ func main() {
 		})
 	}
 
-	// Handle keyboard input properly
 	if err := keyboard.Open(); err != nil {
 		panic(err)
 	}
-	defer keyboard.Close()
+	defer func() {
+		_ = keyboard.Close()
+	}()
 
-	// timerSeconds := 0
+	fmt.Println("Press ESC to quit")
 
 	for {
 		char, key, err := keyboard.GetKey()
 		if err != nil {
 			panic(err)
 		}
-
 		switch key {
 		case keyboard.KeyBackspace2:
 			cursor = max(0, cursor-1)
@@ -123,9 +122,20 @@ func main() {
 
 		fmt.Printf(RenderText(chars))
 
-		// size := WindowDimensions{}
-		// size.getCurrent()
+		size := WindowDimensions{}
+		size.getCurrent()
 
 	}
+
+	// Implement timer
+	// ticker := time.NewTicker(1000 * time.Microsecond)
+	// go func() {
+	// 	for t := range ticker.C {
+	// 		fmt.Printf("\r%s", t)
+	// 	}
+	//        time.Sleep(10 * time.Second)
+	//        ticker.Stop()
+	//        defer fmt.Println("Ticker stopped")
+	// }()
 
 }

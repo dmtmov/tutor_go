@@ -3,11 +3,10 @@ package main
 import (
 	// "encoding/binary"
 	"fmt"
-	"os"
-	"os/exec"
-	"strconv"
+    "os/exec"
+	"log"
 	"strings"
-) // "log"
+)
 
 func RenderText(characters []Char) string {
 	toPrint := make([]string, len(placeholder))
@@ -25,35 +24,42 @@ type WindowDimensions struct {
 }
 
 func (t WindowDimensions) getCurrent() {
-	cmd := exec.Command("stty", "size")
-	cmd.Stdin = os.Stdin
-	out, err := cmd.Output()
-	// fmt.Printf("out: %v\n", string(out))
-	if err != nil {
-		// log.Fatal(err)
-		panic(err)
-	}
-
-	t = WindowDimensions{}
-	values := strings.Split(string(out), " ")
+	// cmd := exec.Command("tput", "cols")
+	// cmd.Stdin = os.Stdin
+	// out, err := cmd.Output()
+	//    fmt.Printf("out: %v, cmd: %v", string(out), cmd)
+	// if err != nil {
+	// 	// log.Fatal(err)
+	// 	panic(err)
+	// }
+	//
+	// t = WindowDimensions{}
+	// values := strings.Split(string(out), " ")
 
 	// h := values[0]
-	w := strings.TrimSuffix(values[1], "\n")
 
+	cmd := exec.Command("tput", "cols")
+	cmd.Stdin = strings.NewReader("")
+	var out strings.Builder
+	cmd.Stdout = &out
+	err := cmd.Run()
+	if err != nil {
+		log.Fatal(err)
+	}
+	fmt.Printf("in all caps: %v\n", out.String())
     // Need to discover why `tput cols/lines` is better than `stty size`
     // Maybe it's better to use 3d-party library for that.
 	// THIS: https://github.com/atomicgo
 	// examples: https://gobyexample.com/
 
-	height, err := strconv.Atoi(values[0])
-	width, err := strconv.Atoi(w)
-	t.height = height
-	t.width = width
 
-	fmt.Println(t)
+	// height, err := strconv.Atoi(values[0])
+	// width, err := strconv.Atoi(w)
+	// t.height = height
+	// t.width = width
 
-	middle := t.width % 2
+	// middle := t.width % 2
 
-	fmt.Println(middle)
+	// fmt.Println(middle)
 
 }
