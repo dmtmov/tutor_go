@@ -2,8 +2,8 @@ package main
 
 import (
 	"fmt"
-
 	"github.com/eiannone/keyboard"
+	// "strings"
 )
 
 type States struct {
@@ -71,11 +71,10 @@ func (char Char) String() string {
 	}
 }
 
-const placeholder = "Lorem Ipsum"
-
 var states = States{"r", "c", "w", "f"}
 
 func main() {
+	placeholder := GetPlaceholderText()
 	cursor := 0
 
 	var chars []Char
@@ -120,10 +119,10 @@ func main() {
 			cursor += 1
 		}
 
-		fmt.Printf(RenderText(chars))
+		fmt.Printf("\r%s", RenderText(chars))
 
-		size := WindowDimensions{}
-		size.getCurrent()
+		// size := WindowDimensions{}
+		// size.getCurrent()
 
 	}
 
