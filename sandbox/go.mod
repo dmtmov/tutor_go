@@ -1,6 +1,6 @@
-module typings
+module main
 
-go 1.22.3
+go 1.22.4
 
 require github.com/gdamore/tcell/v2 v2.7.4
 
