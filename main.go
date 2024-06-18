@@ -2,139 +2,142 @@ package main
 
 import (
 	"fmt"
-	"github.com/eiannone/keyboard"
-	// "strings"
+	"log"
+
+	"github.com/gdamore/tcell/v2"
 )
 
-type States struct {
-	regular string // the initial state. No modificators;
-	correct string // color the char into green;
-	wrong   string // color the char into red;
-	focus   string // add underline symbol to the char to mark as a cursor;
-}
-
-// Single character instance
-type Char struct {
-	value    string // the new value set from the pressed key;
-	original string // the initial value taken from the placeholder;
-	state    string // chosen style to character;
-	toPrint  string
-}
-
-// Update the state of reffered character
-func (char *Char) setState(val, stt string) {
-	char.value = val
-	char.state = stt
-	char.toPrint = val
-}
-
-type Styles struct {
-	okBlue, fail, end, underline string
-	// HEADER := "\033[95m"
-	// OKBLUE = "\033[94m"
-	// OKCYAN = "\033[96m"
-	// OKGREEN = "\033[92m"
-	// WARNING = "\033[93m"
-	// FAIL = "\033[91m"
-	// ENDC = "\033[0m"
-	// BOLD = "\033[1m"
-	// UNDERLINE = "\033[4m"
-	// BLACK = "\033[97m"
-}
-
-// Return a character according its state at the moment of iteration
-func (char Char) String() string {
-	// TODO: find more elegant solution to store styles
-	styles := Styles{
-		okBlue:    "\033[94m",
-		fail:      "\033[91m",
-		end:       "\033[0m",
-		underline: "\033[4m",
-	}
-
-	var getPrintString = func(style string) string {
-		return fmt.Sprintf("%s%s%s", style, char.value, styles.end)
-	}
-	switch char.state {
-	case states.correct:
-		char.toPrint = getPrintString(styles.okBlue)
-		return getPrintString(styles.okBlue)
-	case states.wrong:
-		char.toPrint = getPrintString(styles.fail)
-		return getPrintString(styles.fail)
-	case states.regular:
-		char.toPrint = fmt.Sprintf("%s", char.value)
-		return fmt.Sprintf("%s", char.value)
-	default:
-		char.toPrint = char.value
-		return char.value
+func drawText(s tcell.Screen, x1, y1, x2, y2 int, style tcell.Style, text string) {
+	row := y1
+	col := x1
+	for _, r := range []rune(text) {
+		s.SetContent(col, row, r, nil, style)
+		col++
+		if col >= x2 {
+			row++
+			col = x1
+		}
+		if row > y2 {
+			break
+		}
 	}
 }
 
-var states = States{"r", "c", "w", "f"}
+func drawBox(s tcell.Screen, x1, y1, x2, y2 int, style tcell.Style, text string) {
+	if y2 < y1 {
+		y1, y2 = y2, y1
+	}
+	if x2 < x1 {
+		x1, x2 = x2, x1
+	}
+
+	// Fill background
+	for row := y1; row <= y2; row++ {
+		for col := x1; col <= x2; col++ {
+			s.SetContent(col, row, ' ', nil, style)
+		}
+	}
+
+	// Draw borders
+	for col := x1; col <= x2; col++ {
+		s.SetContent(col, y1, tcell.RuneHLine, nil, style)
+		s.SetContent(col, y2, tcell.RuneHLine, nil, style)
+	}
+	for row := y1 + 1; row < y2; row++ {
+		s.SetContent(x1, row, tcell.RuneVLine, nil, style)
+		s.SetContent(x2, row, tcell.RuneVLine, nil, style)
+	}
+
+	// Only draw corners if necessary
+	if y1 != y2 && x1 != x2 {
+		s.SetContent(x1, y1, tcell.RuneULCorner, nil, style)
+		s.SetContent(x2, y1, tcell.RuneURCorner, nil, style)
+		s.SetContent(x1, y2, tcell.RuneLLCorner, nil, style)
+		s.SetContent(x2, y2, tcell.RuneLRCorner, nil, style)
+	}
+
+	drawText(s, x1+1, y1+1, x2-1, y2-1, style, text)
+}
 
 func main() {
-	placeholder := GetPlaceholderText()
-	cursor := 0
+	defStyle := tcell.StyleDefault.Background(tcell.ColorReset).Foreground(tcell.ColorReset)
+	boxStyle := tcell.StyleDefault.Foreground(tcell.ColorWhite).Background(tcell.ColorPurple)
 
-	var chars []Char
-
-	for _, value := range placeholder {
-		chars = append(chars, Char{
-			value:    string(value),
-			original: string(value),
-			state:    states.regular,
-		})
+	// Initialize screen
+	s, err := tcell.NewScreen()
+	if err != nil {
+		log.Fatalf("%+v", err)
 	}
-
-	if err := keyboard.Open(); err != nil {
-		panic(err)
+	if err := s.Init(); err != nil {
+		log.Fatalf("%+v", err)
 	}
-	defer func() {
-		_ = keyboard.Close()
-	}()
+	s.SetStyle(defStyle)
+	s.EnableMouse()
+	s.EnablePaste()
+	s.Clear()
 
-	fmt.Println("Press ESC to quit")
+	// Draw initial boxes
+	drawBox(s, 1, 1, 42, 7, boxStyle, "Click and drag to draw a box")
+	drawBox(s, 5, 9, 32, 14, boxStyle, "Press C to reset")
 
+	quit := func() {
+		// You have to catch panics in a defer, clean up, and
+		// re-raise them - otherwise your application can
+		// die without leaving any diagnostic trace.
+		maybePanic := recover()
+		s.Fini()
+		if maybePanic != nil {
+			panic(maybePanic)
+		}
+	}
+	defer quit()
+
+	// Here's how to get the screen size when you need it.
+	// xmax, ymax := s.Size()
+
+	// Here's an example of how to inject a keystroke where it will
+	// be picked up by the next PollEvent call.  Note that the
+	// queue is LIFO, it has a limited length, and PostEvent() can
+	// return an error.
+	// s.PostEvent(tcell.NewEventKey(tcell.KeyRune, rune('a'), 0))
+
+	// Event loop
+	ox, oy := -1, -1
 	for {
-		char, key, err := keyboard.GetKey()
-		if err != nil {
-			panic(err)
-		}
-		switch key {
-		case keyboard.KeyBackspace2:
-			cursor = max(0, cursor-1)
-			chars[cursor].setState(chars[cursor].original, states.regular)
-		case keyboard.KeySpace:
-			chars[cursor].setState(" ", states.correct)
-			cursor += 1
-		case keyboard.KeyEsc:
-			return
-		default:
-			if string(char) == chars[cursor].original {
-				chars[cursor].setState(string(char), states.correct)
-			} else {
-				chars[cursor].setState(string(char), states.wrong)
+		// Update screen
+		s.Show()
+
+		// Poll event
+		ev := s.PollEvent()
+
+		// Process event
+		switch ev := ev.(type) {
+		case *tcell.EventResize:
+			s.Sync()
+		case *tcell.EventKey:
+			if ev.Key() == tcell.KeyEscape || ev.Key() == tcell.KeyCtrlC {
+				return
+			} else if ev.Key() == tcell.KeyCtrlL {
+				s.Sync()
+			} else if ev.Rune() == 'C' || ev.Rune() == 'c' {
+				s.Clear()
 			}
-			cursor += 1
+		case *tcell.EventMouse:
+			x, y := ev.Position()
+
+			switch ev.Buttons() {
+			case tcell.Button1, tcell.Button2:
+				if ox < 0 {
+					ox, oy = x, y // record location when click started
+				}
+
+			case tcell.ButtonNone:
+				if ox >= 0 {
+					label := fmt.Sprintf("%d,%d to %d,%d", ox, oy, x, y)
+					drawBox(s, ox, oy, x, y, boxStyle, label)
+					ox, oy = -1, -1
+				}
+			}
 		}
-
-		fmt.Printf("\r%s", RenderText(chars))
-
-		// size := WindowDimensions{}
-		// size.getCurrent()
-
 	}
-
-	// Implement timer
-	// ticker := time.NewTicker(1000 * time.Microsecond)
-	// go func() {
-	// 	for t := range ticker.C {
-	// 		fmt.Printf("\r%s", t)
-	// 	}
-	//        time.Sleep(10 * time.Second)
-	//        ticker.Stop()
-	//        defer fmt.Println("Ticker stopped")
-	// }()
-
 }
