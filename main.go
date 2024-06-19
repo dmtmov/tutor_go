@@ -1,7 +1,7 @@
 package main
 
 import (
-	"fmt"
+	// "fmt"
 	"log"
 
 	"github.com/gdamore/tcell/v2"
@@ -59,33 +59,57 @@ func drawBox(s tcell.Screen, x1, y1, x2, y2 int, style tcell.Style, text string)
 	drawText(s, x1+1, y1+1, x2-1, y2-1, style, text)
 }
 
+type appStyle struct {
+	style tcell.Style
+}
+
 func main() {
-	defStyle := tcell.StyleDefault.Background(tcell.ColorReset).Foreground(tcell.ColorReset)
-	boxStyle := tcell.StyleDefault.Foreground(tcell.ColorWhite).Background(tcell.ColorPurple)
+	// Generate text here. This is gonna be replaced with ollama version.
+	// typingText := "Lorem Ipsum"
+
+	// The application will have two modes:
+	// - welcome screen with statistics (if any);
+	// - typing screen with the text to fill through
+	welcomeMode := appStyle{
+		tcell.StyleDefault.Foreground(tcell.ColorTomato).Background(tcell.ColorReset),
+	}
 
 	// Initialize screen
-	s, err := tcell.NewScreen()
+	app, err := tcell.NewScreen()
 	if err != nil {
 		log.Fatalf("%+v", err)
 	}
-	if err := s.Init(); err != nil {
+	if err := app.Init(); err != nil {
 		log.Fatalf("%+v", err)
 	}
-	s.SetStyle(defStyle)
-	s.EnableMouse()
-	s.EnablePaste()
-	s.Clear()
 
-	// Draw initial boxes
-	drawBox(s, 1, 1, 42, 7, boxStyle, "Click and drag to draw a box")
-	drawBox(s, 5, 9, 32, 14, boxStyle, "Press C to reset")
+	app.SetStyle(welcomeMode.style)
+
+    // app.EnableFocus()
+    // app.DisableMouse()
+	// app.HideCursor()
+	// app.EnablePaste()
+	app.Clear()
+
+    // TODO: 
+    // - get the middle index of welcome message
+    // - position welcome message in center of screen
+    // - wait for any key pressed
+    // - prepare the inner box-block with the text-to-type
+
+	w, h := app.Size()
+	// app.SetSize(w, h)
+
+    welcomeRunes := []rune("Press any key to start")
+
+	app.SetContent(w/100*30, h/2, rune('_'), welcomeRunes, welcomeMode.style)
 
 	quit := func() {
 		// You have to catch panics in a defer, clean up, and
 		// re-raise them - otherwise your application can
 		// die without leaving any diagnostic trace.
 		maybePanic := recover()
-		s.Fini()
+		app.Fini()
 		if maybePanic != nil {
 			panic(maybePanic)
 		}
@@ -102,41 +126,24 @@ func main() {
 	// s.PostEvent(tcell.NewEventKey(tcell.KeyRune, rune('a'), 0))
 
 	// Event loop
-	ox, oy := -1, -1
 	for {
 		// Update screen
-		s.Show()
+		app.Show()
 
 		// Poll event
-		ev := s.PollEvent()
+		ev := app.PollEvent()
 
 		// Process event
 		switch ev := ev.(type) {
 		case *tcell.EventResize:
-			s.Sync()
+			app.Sync()
 		case *tcell.EventKey:
 			if ev.Key() == tcell.KeyEscape || ev.Key() == tcell.KeyCtrlC {
 				return
 			} else if ev.Key() == tcell.KeyCtrlL {
-				s.Sync()
+				app.Sync()
 			} else if ev.Rune() == 'C' || ev.Rune() == 'c' {
-				s.Clear()
-			}
-		case *tcell.EventMouse:
-			x, y := ev.Position()
-
-			switch ev.Buttons() {
-			case tcell.Button1, tcell.Button2:
-				if ox < 0 {
-					ox, oy = x, y // record location when click started
-				}
-
-			case tcell.ButtonNone:
-				if ox >= 0 {
-					label := fmt.Sprintf("%d,%d to %d,%d", ox, oy, x, y)
-					drawBox(s, ox, oy, x, y, boxStyle, label)
-					ox, oy = -1, -1
-				}
+				app.Clear()
 			}
 		}
 	}
