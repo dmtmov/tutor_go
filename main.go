@@ -1,80 +1,39 @@
 package main
 
 import (
-	// "fmt"
 	"log"
+	"os"
 
 	"github.com/gdamore/tcell/v2"
 )
 
-func drawText(s tcell.Screen, x1, y1, x2, y2 int, style tcell.Style, text string) {
-	row := y1
-	col := x1
-	for _, r := range []rune(text) {
-		s.SetContent(col, row, r, nil, style)
-		col++
-		if col >= x2 {
-			row++
-			col = x1
-		}
-		if row > y2 {
-			break
-		}
-	}
-}
-
-func drawBox(s tcell.Screen, x1, y1, x2, y2 int, style tcell.Style, text string) {
-	if y2 < y1 {
-		y1, y2 = y2, y1
-	}
-	if x2 < x1 {
-		x1, x2 = x2, x1
-	}
-
-	// Fill background
-	for row := y1; row <= y2; row++ {
-		for col := x1; col <= x2; col++ {
-			s.SetContent(col, row, ' ', nil, style)
-		}
-	}
-
-	// Draw borders
-	for col := x1; col <= x2; col++ {
-		s.SetContent(col, y1, tcell.RuneHLine, nil, style)
-		s.SetContent(col, y2, tcell.RuneHLine, nil, style)
-	}
-	for row := y1 + 1; row < y2; row++ {
-		s.SetContent(x1, row, tcell.RuneVLine, nil, style)
-		s.SetContent(x2, row, tcell.RuneVLine, nil, style)
-	}
-
-	// Only draw corners if necessary
-	if y1 != y2 && x1 != x2 {
-		s.SetContent(x1, y1, tcell.RuneULCorner, nil, style)
-		s.SetContent(x2, y1, tcell.RuneURCorner, nil, style)
-		s.SetContent(x1, y2, tcell.RuneLLCorner, nil, style)
-		s.SetContent(x2, y2, tcell.RuneLRCorner, nil, style)
-	}
-
-	drawText(s, x1+1, y1+1, x2-1, y2-1, style, text)
-}
-
-type appStyle struct {
+type appMode struct {
 	style tcell.Style
+	is_on bool
 }
 
 func main() {
 	// Generate text here. This is gonna be replaced with ollama version.
 	// typingText := "Lorem Ipsum"
 
+	logFilePath := "/tmp/go_tutorial.log"
+	logFile, err := os.OpenFile(logFilePath, os.O_APPEND|os.O_RDWR|os.O_CREATE, 0o644)
+	if err != nil {
+		log.Panic(err)
+	}
+	log.SetOutput(logFile)
+	log.SetFlags(log.Lshortfile | log.LstdFlags)
+	defer logFile.Close()
 	// The application will have two modes:
 	// - welcome screen with statistics (if any);
 	// - typing screen with the text to fill through
-	welcomeMode := appStyle{
-		tcell.StyleDefault.Foreground(tcell.ColorTomato).Background(tcell.ColorReset),
+	welcomeMode := appMode{
+		tcell.StyleDefault.Foreground(
+			tcell.ColorTomato).Background(tcell.ColorReset),
+		true,
 	}
 
-	// Initialize screen
+	// Initialize the application
 	app, err := tcell.NewScreen()
 	if err != nil {
 		log.Fatalf("%+v", err)
@@ -84,25 +43,21 @@ func main() {
 	}
 
 	app.SetStyle(welcomeMode.style)
-
-    // app.EnableFocus()
-    // app.DisableMouse()
-	// app.HideCursor()
-	// app.EnablePaste()
+	app.DisableMouse()
 	app.Clear()
 
-    // TODO: 
-    // - get the middle index of welcome message
-    // - position welcome message in center of screen
-    // - wait for any key pressed
-    // - prepare the inner box-block with the text-to-type
-
+	// Position welcome text in the center of screen
 	w, h := app.Size()
-	// app.SetSize(w, h)
+	welcomeText := "ress any key to start"
+	x_, y_ := w/2-len(welcomeText)/2, h/2
 
-    welcomeRunes := []rune("Press any key to start")
+	app.SetContent(x_, y_, rune('P'), []rune(welcomeText), welcomeMode.style)
 
-	app.SetContent(w/100*30, h/2, rune('_'), welcomeRunes, welcomeMode.style)
+	// TODO:
+	// - get the middle index of welcome message
+	// - position welcome message in center of screen
+	// - wait for any key pressed
+	// - prepare the inner box-block with the text-to-type
 
 	quit := func() {
 		// You have to catch panics in a defer, clean up, and
@@ -129,6 +84,9 @@ func main() {
 	for {
 		// Update screen
 		app.Show()
+
+		// we are in the welcome mode now
+		log.Println(welcomeMode, x_,  y_)
 
 		// Poll event
 		ev := app.PollEvent()
