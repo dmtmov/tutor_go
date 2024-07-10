@@ -1,108 +1,174 @@
 package main
 
 import (
-	"log"
-	"os"
+	"fmt"
+	"strings"
+	"time"
 
-	"github.com/gdamore/tcell/v2"
+	"github.com/eiannone/keyboard"
 )
 
-type appMode struct {
-	style tcell.Style
-	is_on bool
+const (
+	HEADER       = "\033[95m"
+	OKBLUE       = "\033[94m"
+	OKCYAN       = "\033[96m"
+	OKGREEN      = "\033[92m"
+	WARNING      = "\033[93m"
+	BLACK        = "\033[97m"
+	FAIL         = "\033[91m"
+	ENDC         = "\033[0m"
+	BOLD         = "\033[1m"
+	UNDERLINE    = "\033[4m"
+	CURSOR_X0_Y0 = "\033[H"
+	CLEAN_SCREEN = "\033[2J"
+	SHOW_CURSOR  = "\033[?25h"
+	HIDE_CURSOR  = "\033[?25l"
+	NEW_LINE     = "\012"
+)
+
+type States struct {
+	regular string // the initial state. No modificators;
+	correct string // color the char into green;
+	wrong   string // color the char into red;
+	focus   string // add underline symbol to the char to mark as a cursor;
+}
+
+type Sign struct {
+	newValue  string // the new value set from the pressed key;
+	origValue string // the initial value taken from the placeholder;
+	state     string // chosen style to character;
+	toPrint   string
+}
+
+// Update the state of reffered character
+func (s *Sign) setState(val, stt string) {
+	s.newValue = val
+	s.state = stt
+	s.toPrint = val
+}
+
+type Event struct {
+	r rune
+	k keyboard.Key
+}
+
+func startKeyObserver(ch chan<- Event) {
+	if err := keyboard.Open(); err != nil {
+		panic(err)
+	}
+	defer keyboard.Close()
+
+	for {
+		runa, key, err := keyboard.GetSingleKey()
+		if err != nil {
+			panic(err)
+		}
+		ch <- Event{runa, key}
+	}
+}
+
+func startTicking(ch chan<- time.Time, done <-chan bool) {
+	ticker := time.NewTicker(1 * time.Millisecond)
+	defer ticker.Stop()
+
+	for {
+		select {
+		case t := <-ticker.C:
+			ch <- t
+			// fmt.Print("\033[H")
+			// fmt.Printf("%s\n", t)
+		case <-done:
+			return
+		}
+	}
+}
+
+var states = States{"r", "c", "w", "f"}
+
+func (s *Sign) String() string {
+	getPrintString := func(style string) string {
+		return fmt.Sprintf("%s%s%s", style, s.newValue, ENDC)
+	}
+	switch s.state {
+	case states.correct:
+		s.toPrint = getPrintString(OKBLUE)
+		return getPrintString(OKBLUE)
+	case states.wrong:
+		s.toPrint = getPrintString(FAIL)
+		return getPrintString(FAIL)
+	case states.regular:
+		s.toPrint = s.newValue
+		return s.newValue
+	default:
+		s.toPrint = s.newValue
+		return s.newValue
+	}
+}
+
+func RenderText(characters []Sign) string {
+	toPrint := make([]string, len(characters))
+	for _, val := range characters {
+		toPrint = append(toPrint, val.String())
+	}
+
+	return fmt.Sprintf("%v", strings.Join(toPrint, ""))
 }
 
 func main() {
-	// Generate text here. This is gonna be replaced with ollama version.
-	// typingText := "Lorem Ipsum"
+	// ANSI Escape Codes:
+	// https://gist.github.com/fnky/458719343aabd01cfb17a3a4f7296797
 
-	logFilePath := "/tmp/go_tutorial.log"
-	logFile, err := os.OpenFile(logFilePath, os.O_APPEND|os.O_RDWR|os.O_CREATE, 0o644)
-	if err != nil {
-		log.Panic(err)
-	}
-	log.SetOutput(logFile)
-	log.SetFlags(log.Lshortfile | log.LstdFlags)
-	defer logFile.Close()
-	// The application will have two modes:
-	// - welcome screen with statistics (if any);
-	// - typing screen with the text to fill through
-	welcomeMode := appMode{
-		tcell.StyleDefault.Foreground(
-			tcell.ColorTomato).Background(tcell.ColorReset),
-		true,
+	tickCh := make(chan time.Time)
+	keyCh := make(chan Event)
+	done := make(chan bool, 1)
+	placeholder := `package main; import "fmt"; func main() { for i := 0; i < 10; i++ { fmt.Println(i) } }`
+
+	cursor := 0
+	var chars []Sign
+	for _, value := range placeholder {
+		chars = append(chars, Sign{
+			newValue:  string(value),
+			origValue: string(value),
+			state:     states.regular,
+		})
 	}
 
-	// Initialize the application
-	app, err := tcell.NewScreen()
-	if err != nil {
-		log.Fatalf("%+v", err)
-	}
-	if err := app.Init(); err != nil {
-		log.Fatalf("%+v", err)
-	}
+	go startTicking(tickCh, done)
+	go startKeyObserver(keyCh)
 
-	app.SetStyle(welcomeMode.style)
-	app.DisableMouse()
-	app.Clear()
+	// moves cursor to home position and erase the entire screen
+	fmt.Print(CLEAN_SCREEN, CURSOR_X0_Y0)
 
-	// Position welcome text in the center of screen
-	w, h := app.Size()
-	welcomeText := "ress any key to start"
-	x_, y_ := w/2-len(welcomeText)/2, h/2
-
-	app.SetContent(x_, y_, rune('P'), []rune(welcomeText), welcomeMode.style)
-
-	// TODO:
-	// - get the middle index of welcome message
-	// - position welcome message in center of screen
-	// - wait for any key pressed
-	// - prepare the inner box-block with the text-to-type
-
-	quit := func() {
-		// You have to catch panics in a defer, clean up, and
-		// re-raise them - otherwise your application can
-		// die without leaving any diagnostic trace.
-		maybePanic := recover()
-		app.Fini()
-		if maybePanic != nil {
-			panic(maybePanic)
-		}
-	}
-	defer quit()
-
-	// Here's how to get the screen size when you need it.
-	// xmax, ymax := s.Size()
-
-	// Here's an example of how to inject a keystroke where it will
-	// be picked up by the next PollEvent call.  Note that the
-	// queue is LIFO, it has a limited length, and PostEvent() can
-	// return an error.
-	// s.PostEvent(tcell.NewEventKey(tcell.KeyRune, rune('a'), 0))
-
-	// Event loop
 	for {
-		// Update screen
-		app.Show()
+		ev := <-keyCh
+		fmt.Print(HIDE_CURSOR)
 
-		// we are in the welcome mode now
-		log.Println(welcomeMode, x_,  y_)
-
-		// Poll event
-		ev := app.PollEvent()
-
-		// Process event
-		switch ev := ev.(type) {
-		case *tcell.EventResize:
-			app.Sync()
-		case *tcell.EventKey:
-			if ev.Key() == tcell.KeyEscape || ev.Key() == tcell.KeyCtrlC {
-				return
-			} else if ev.Key() == tcell.KeyCtrlL {
-				app.Sync()
-			} else if ev.Rune() == 'C' || ev.Rune() == 'c' {
-				app.Clear()
+		switch ev.k {
+		case keyboard.KeyBackspace2:
+			cursor = max(0, cursor-1)
+			chars[cursor].setState(chars[cursor].origValue, states.regular)
+		case keyboard.KeySpace:
+			chars[cursor].setState("_", states.correct)
+			cursor += 1
+		case keyboard.KeyEsc:
+			close(done)
+			fmt.Print(SHOW_CURSOR)
+			fmt.Print(CLEAN_SCREEN)
+			fmt.Print(CURSOR_X0_Y0)
+			return
+		default:
+			if string(ev.r) == chars[cursor].origValue {
+				chars[cursor].setState(string(ev.r), states.correct)
+			} else {
+				chars[cursor].setState(chars[cursor].origValue, states.wrong)
 			}
+			cursor += 1
+
+			tick := <-tickCh
+			fmt.Print(CURSOR_X0_Y0)
+			fmt.Print(NEW_LINE)
+			fmt.Printf("%s\n", tick)
 		}
+		fmt.Printf("%s", RenderText(chars))
 	}
 }
